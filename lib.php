@@ -25,58 +25,58 @@ $res = $mysql->query('select * from library_books');
 /*       } */
 /* } */
 
-$content = http_get("http://210.30.108.79/opac/item.php?marc_no=0000091755");
 
-$contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
-$preg = '/题名\/责任者:<\/dt>.*<a.*>(.*)<\/a>\/(.*)<\/dd>.*<dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN及定价:/U';
-if(preg_match($preg, $contents, $out)){
-    echo "书名：$out[1]<br />作者：$out[2]<br />出版社：$out[3]<br />出版时间：$out[4]<br />";
-}
+function check_books($no){
+    $content = http_get("http://210.30.108.79/opac/item.php?marc_no=$no");
 
-$bookarr = array();
-$preg2 = '/<table.*索书号.*<\/table>/U';
-if(preg_match($preg2, $contents, $out)){
-    $preg2 = '/<tr.*>(.*)<\/tr>/U';
-    if(preg_match_all($preg2, $out[0], $out)){
-        $preg2 = '/<td.*>(.*)<\/td>/U';
-        for($i=1;$i<count($out[1]);$i++){
-            if(preg_match_all($preg2,$out[1][$i],$res)){
-                $bookarr[] = $res[1];
+    $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
+    $contents = html_entity_decode($contents, ENT_QUOTES, 'GB2312');     //将&#x0020;字符转中文
+
+    //先确定有没有这本书，然后去解析书的信息
+    $bookarr = array();        
+    $preg2 = '/<table.*索书号.*<\/table>/U';
+    if(preg_match($preg2, $contents, $out)){
+        $preg2 = '/<tr.*>(.*)<\/tr>/U';
+        if(preg_match_all($preg2, $out[0], $out)){
+            $preg2 = '/<td.*>(.*)<\/td>/U';
+            for($i=1;$i<count($out[1]);$i++){
+                if(preg_match_all($preg2,$out[1][$i],$res)){
+                    $bookarr[] = $res[1];    //将每项最后结果放入数组
+                }
             }
         }
     }
-}
-if(!empty($bookarr)){
-    for($i=0;$i<count($bookarr);$i++){
-        $search = $bookarr[$i][0];
+    if(!empty($bookarr)){
+        for($i=0;$i<count($bookarr);$i++){
+            $search = $bookarr[$i][0];                     //变量表示索书号
 
-        $preg3 = '/>基本书库—基本书库(.*)</U';
-        preg_match($preg3, $bookarr[$i][3], $out);
-        $place = $out[1];
+            $preg3 = '/>.*库.*库(.*)</U';
+            preg_match($preg3, $bookarr[$i][3], $out);
+            $place = $out[1];                        //变量表示馆藏位置
 
-        $preg3 = '/>(.*)</U';
-        preg_match($preg3, $bookarr[$i][4], $out);
-        $state = $out[4] == '可借' ? '可借' : '已借出';
+            $preg3 = '/>(.*)</U';
+            preg_match($preg3, $bookarr[$i][4], $out);
+            $state = $out[1] == '可借' ? '可借' : '已借出';           //变量表示是否可借
+        }
+    }else{
+        return array("res"=>"201");   //表示没有这本，返回就直接终止
+        exit;
     }
-echo "索书号：$search<br />馆藏地：$place<br />状态：$state<br />";
-}
-/* var_dump($bookarr); */
-        /* $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$allHtml);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符 */
-        /* $preg = '/<th>姓名.*table/U'; */
-        /* if(preg_match($preg, $contents, $out)){    //如果存在匹配，证明查询成功，并且将table内容存入$out中 */
-        /*     $preg = '/<td.*>(.*)<\/td>/U'; */
-        /*     preg_match_all($preg, $out[0], $out1);   //$out1保存每项值,惟独成绩一项需要特殊处理 */
-        /*     $name = $out1[1][0]; */
-        /*     $school = $out1[1][1]; */
-        /*     $type = $out1[1][2]; */
-        /*     $num = $out1[1][3]; */
-        /*     $time = $out1[1][4]; */
 
-        /*     $preg = '/：<\/span>(.*)</U'; */
-        /*     preg_match_all($preg, $out1[0][5], $out2);   //从$out[0][5]获得个部分成绩，存入$out[2]中 */
-        /*     $tlScore = $out2[1][0]; */
-        /*     $ydScore = $out2[1][1]; */
-        /*     $xzpyScore = $out2[1][2]; */
+    /* $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U'; */
+    $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
+    /* echo $preg; */
+    if(preg_match($preg, $contents, $out)){
+        /* print_r($out); */
+        $title = preg_replace('/<\/a>?/','',$out[1]);   //某些情况不存在>符号，变量表示书名
+        $auther = preg_replace('/ =.*/','',$out[2]);   //变量表示著作
+        $press = $out[3];              //变量表示出版社
+        $time = $out[4];           //变量表示出版时间
+        echo "书名：$title<br />作者：$auther<br />出版社：$press<br />出版时间：$time<br /><br />索书号：$search<br />馆藏地：$place<br />状态：$state<br />";
+    }
+}
+
+
 /**
  * GET 请求
  * @param string $url
