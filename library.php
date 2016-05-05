@@ -92,7 +92,7 @@ function check_books($no){
     $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
     $contents = html_entity_decode($contents);     //将&#x0020;字符转中文
     $contents = preg_replace('/<\/a>/','',$contents);   //先提前将</a>给删了，免去判断
-        echo $contents;
+        /* echo $contents; */
 
     //先确定有没有这本书，然后去解析书的信息
 
@@ -134,27 +134,13 @@ function check_books($no){
     $preg8 = '/题名\/责任者:<\/dt><dd><a.*>(.*)\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
     if(preg_match($preg7, $contents, $out7)){
         if(preg_match('/\//',$out7[1])){             //某些存在多个/字符的问题解决
-            $temp = explode('/', $out7[1], substr_count($out7[1],'/')+1);
-            $title = $temp[0];
-            $auther = $temp[1];
+            $title = substr($out7[1],0,strrpos($out7[1],'/')); ;
+            $auther = substr($out7[1],strrpos($out7[1],'/')+1, strlen($out7[1])); ;
         }else{
             $title = $out7[1];
         }
         $press = $out7[2];              //变量表示出版社
         $time = $out7[3];           //变量表示出版时间
-        /* print_r($out7); */
-        return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
-    }else if(preg_match($preg8, $contents, $out8)){
-        $title = $out8[1];   
-        $auther = preg_replace('/=.*/','',$out8[2]);   //某些情况存在=解释，变量表示著作
-        if(preg_match('/\//',$auther)){             //某些存在多个/字符的问题解决
-            $temp = explode('/', $auther, substr_count($auther,'/')+1);
-            $title .= '/'.$temp[0];
-            $auther = $temp[1];
-        }
-        $press = $out8[3];              //变量表示出版社
-        $time = $out8[4];           //变量表示出版时间
-        /* echo "书名：$title<br />作者：$auther<br />出版社：$press<br />出版时间：$time<br /><br />索书号：$search<br />馆藏地：$place<br />状态：$state<br />"; */
         return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
     }else{
         return array("res"=>201,"mes"=>"top");   //表示没有这本，并且是因为上面匹配为空导致，返回就直接终止
