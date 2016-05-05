@@ -58,8 +58,8 @@ function main_action($minno, $maxno){
 main_test();
 
 function main_test(){
-    $no = "0000100031";
-    $res = check_books($no);
+    $no = "0000090946";
+    $res = check_books($_GET['id']);
     /* save_book($res); */
     print_r($res);
 }
@@ -92,23 +92,24 @@ function check_books($no){
     $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
     $contents = html_entity_decode($contents);     //将&#x0020;字符转中文
     $contents = preg_replace('/<\/a>/','',$contents);   //先提前将</a>给删了，免去判断
+        echo $contents;
 
     //先确定有没有这本书，然后去解析书的信息
 
-    $preg = '/此书刊可能正在订购中或者处理中/';
+    $preg1 = '/此书刊可能正在订购中或者处理中/';
     if(preg_match($preg, $contents)){
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
     }
 
     $bookarr = array();        
     $preg2 = '/<table.*索书号.*<\/table>/U';
-    if(preg_match($preg2, $contents, $out)){
-        $preg2 = '/<tr.*>(.*)<\/tr>/U';
-        if(preg_match_all($preg2, $out[0], $out)){
-            $preg2 = '/<td.*>(.*)<\/td>/U';
-            for($i=1;$i<count($out[1]);$i++){
-                if(preg_match_all($preg2,$out[1][$i],$res)){
-                    $bookarr[] = $res[1];    //将每项最后结果放入数组
+    if(preg_match($preg2, $contents, $out2)){
+        $preg3 = '/<tr.*>(.*)<\/tr>/U';
+        if(preg_match_all($preg3, $out2[0], $out3)){
+            $preg4 = '/<td.*>(.*)<\/td>/U';
+            for($i=1;$i<count($out3[1]);$i++){
+                if(preg_match_all($preg4,$out3[1][$i],$out4)){
+                    $bookarr[] = $out4[1];    //将每项最后结果放入数组
                 }
             }
         }
@@ -117,31 +118,42 @@ function check_books($no){
         for($i=0;$i<count($bookarr);$i++){
             $search = $bookarr[$i][0];                     //变量表示索书号
 
-            $preg3 = '/>.*库.*库(.*)</U';
-            preg_match($preg3, $bookarr[$i][3], $out);
-            $place = $out[1];                        //变量表示馆藏位置
+            $preg5 = '/>.*库.*库(.*)</U';
+            preg_match($preg5, $bookarr[$i][3], $out5);
+            $place = $out5[1];                        //变量表示馆藏位置
 
-            $preg3 = '/>(.*)</U';
-            preg_match($preg3, $bookarr[$i][4], $out);
-            $state = $out[1] == '可借' ? '可借' : '已借出';           //变量表示是否可借
+            $preg6 = '/>(.*)</U';
+            preg_match($preg6, $bookarr[$i][4], $out6);
+            $state = $out6[1] == '可借' ? '可借' : '已借出';           //变量表示是否可借
         }
     }else{
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
     }
 
-    $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
-    /* $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/([^\/]).*<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U'; */
-    /* $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/([^\/])*<\/dd>/U'; */
-    if(preg_match($preg, $contents, $out)){
-        $title = $out[1];   
-        $auther = preg_replace('/=.*/','',$out[2]);   //某些情况存在=解释，变量表示著作
+    $preg7 = '/题名\/责任者:<\/dt><dd><a.*>(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
+    $preg8 = '/题名\/责任者:<\/dt><dd><a.*>(.*)\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
+    if(preg_match($preg7, $contents, $out7)){
+        if(preg_match('/\//',$out7[1])){             //某些存在多个/字符的问题解决
+            $temp = explode('/', $out7[1], substr_count($out7[1],'/')+1);
+            $title = $temp[0];
+            $auther = $temp[1];
+        }else{
+            $title = $out7[1];
+        }
+        $press = $out7[2];              //变量表示出版社
+        $time = $out7[3];           //变量表示出版时间
+        /* print_r($out7); */
+        return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
+    }else if(preg_match($preg8, $contents, $out8)){
+        $title = $out8[1];   
+        $auther = preg_replace('/=.*/','',$out8[2]);   //某些情况存在=解释，变量表示著作
         if(preg_match('/\//',$auther)){             //某些存在多个/字符的问题解决
             $temp = explode('/', $auther, substr_count($auther,'/')+1);
-            $title .= $temp[0];
+            $title .= '/'.$temp[0];
             $auther = $temp[1];
         }
-        $press = $out[3];              //变量表示出版社
-        $time = $out[4];           //变量表示出版时间
+        $press = $out8[3];              //变量表示出版社
+        $time = $out8[4];           //变量表示出版时间
         /* echo "书名：$title<br />作者：$auther<br />出版社：$press<br />出版时间：$time<br /><br />索书号：$search<br />馆藏地：$place<br />状态：$state<br />"; */
         return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
     }else{
