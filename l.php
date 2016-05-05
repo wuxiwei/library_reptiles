@@ -91,6 +91,7 @@ function check_books($no){
 
     $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
     $contents = html_entity_decode($contents);     //将&#x0020;字符转中文
+    $contents = preg_replace('/<\/a>/','',$contents);   //先提前将</a>给删了，免去判断
 
     //先确定有没有这本书，然后去解析书的信息
 
@@ -128,19 +129,19 @@ function check_books($no){
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
     }
 
-    $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
+    $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)\/(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U';
     /* $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/([^\/]).*<\/dd>.*出版发行项:<\/dt><dd>.*:(.*),(.*)<\/dd>.*<dt>ISBN/U'; */
     /* $preg = '/题名\/责任者:<\/dt><dd><a.*>(.*)[^<]\/([^\/])*<\/dd>/U'; */
     if(preg_match($preg, $contents, $out)){
-        $title = preg_replace('/<\/a>?/','',$out[1]);   //某些情况不存在>符号，变量表示书名
-        $auther = preg_replace('/<\/a>?/','',$out[2]);   //某些情况不存在>符号，变量表示书名
-        $auther = preg_replace('/ =.*/','',$auther);   //某些情况存在=解释，变量表示著作
-        if(preg_match('/\//',$auther){
-
+        $title = $out[1];   
+        $auther = preg_replace('/=.*/','',$out[2]);   //某些情况存在=解释，变量表示著作
+        if(preg_match('/\//',$auther)){             //某些存在多个/字符的问题解决
+            $temp = explode('/', $auther, substr_count($auther,'/')+1);
+            $title .= $temp[0];
+            $auther = $temp[1];
         }
         $press = $out[3];              //变量表示出版社
         $time = $out[4];           //变量表示出版时间
-        print_r($out);
         /* echo "书名：$title<br />作者：$auther<br />出版社：$press<br />出版时间：$time<br /><br />索书号：$search<br />馆藏地：$place<br />状态：$state<br />"; */
         return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
     }else{
