@@ -89,7 +89,10 @@ function check_books($no){
     //先确定有没有这本书，然后去解析书的信息
 
     $preg1 = '/此书刊可能正在订购中或者处理中/';
+    $preg1_1 = '/正常验收/';
     if(preg_match($preg1, $contents)){
+        return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
+    }else if(preg_match($preg1_1, $contents)){
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
     }
 
@@ -129,7 +132,13 @@ function check_books($no){
             $auther = substr($out7[1],strrpos($out7[1],'/')+1, strlen($out7[1]));    //截取最后一个/字符到结尾的字符串，一般为著者信息
         }else{//表示第一行没有著者的情况
             $title = $out7[1];
-
+            $preg8 = '/个人责任者.*<a.*>(.*)<\/dd>/U';    //特殊处理，将主编取出
+            $preg9 = '/团体责任者.*<a.*>(.*)<\/dd>/U';
+            if(preg_match($preg8, $contents, $auth)){
+                $auther = $auth[1];
+            }else if(preg_match($preg9, $contents, $auth)){
+                $auther = $auth[1];
+            }
         }
         if(preg_match('/,/',$out7[2])){             //某些存在没有,字符的问题解决
             $press = substr($out7[2],0,strrpos($out7[2],','));        //截取字符串开头到最后一个,字符的字符串，一般为出版社信息
