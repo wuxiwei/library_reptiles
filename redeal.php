@@ -6,16 +6,18 @@ error_reporting(E_ALL ^ E_NOTICE);
 $trouble = 'timeout';    //可以根据情况选要再处理的条件
 
 $mysql=new PDO('mysql:host=localhost;dbname=cityuit','root','q123456');
-$res = $mysql->query("select no from timeout_no where remark = $trouble");
+$mysql->query('set names utf8');//设置字符集
+/* $res = $mysql->query("select no from redeal_no where remark != '$trouble'"); */
+$res = $mysql->query("select no from redeal_no where remark = '$trouble'");
 foreach($res->fetchAll() as $row){
     $noStr = str_pad($row[0], 10, "0", STR_PAD_LEFT);
     $bookmes = check_books($noStr);
     if($bookmes['res'] == 201){
-        $sql = "update redeal_no set remark = $bookmes[mes] where no = $row[0]";
+        $sql = "update redeal_no set remark = '$bookmes[mes]' where no = $row[0]";    //更改状态
         $mysql->exec($sql);
         $mes = "no=> $row[0] ,no book for $bookmes[mes]\n";
         print $mes;
-    }else if($bookmes['res'] == 501){
+    }else if($bookmes['res'] == 501){                //如果超时了，就干脆不做任何修改
         $mes = "no=> $row[0] ,no book for $bookmes[mes]\n";
         print $mes;
     } else{ 
