@@ -199,7 +199,7 @@ function bookmes_top($out, $contents){
         $press = $out[2];
     }
 
-    return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
+    return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time);
 }
 
 
