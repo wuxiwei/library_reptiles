@@ -18,8 +18,7 @@ for($i = 0; $i < $workers; $i++){
     $pids[$i] = pcntl_fork();
     switch ($pids[$i]) {
     case -1:
-        file_out("fork error\n");
-        print "fork error\n";
+        print "fork error----------------------------------------------------------\n";
         exit;
     case 0:
         $minno = ($max/$times) / $workers * $i + ($max/$times*($now-1));
