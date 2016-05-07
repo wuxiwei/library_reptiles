@@ -28,11 +28,11 @@ SET time_zone = "+00:00";
 
 CREATE TABLE IF NOT EXISTS `library_books` (
   `id` int(11) NOT NULL COMMENT '自增量',
-  `no` varchar(10) NOT NULL COMMENT 'url编号',
+  `no` int(11) NOT NULL COMMENT 'url编号',
   `title` varchar(80) NOT NULL COMMENT '书名',
   `auther` varchar(80) NOT NULL COMMENT '作者',
   `press` varchar(80) NOT NULL COMMENT '出版社',
-  `time` varchar(8) NOT NULL COMMENT '出版日期',
+  `time` varchar(20) NOT NULL COMMENT '出版日期',
   `search` varchar(20) NOT NULL COMMENT '索书号',
   `place` varchar(120) NOT NULL COMMENT '馆藏地',
   `state` varchar(8) NOT NULL COMMENT '状态'
