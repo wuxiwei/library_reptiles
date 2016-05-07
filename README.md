@@ -11,29 +11,30 @@ $php -f library.php
 ####运行结果
 
 爬取成功：图书信息存入数据库library_books表  
-抓取超时或数据库出错：存入timeout_no表  
+爬取失败：存入redeal_no表  
 运行信息：存入library.log日志文件  
 top：表示图书信息解析出错  
 under：表示因为图书状态就判断没有该图书  
+订购：表示因为处于订购原因没有爬取成功  
+验收：表示因为处于验收原因没有爬取成功  
 title is null：表示图书以存入数据库，但是没有名字  
 auther is null：表示图书以存入数据库，但是没有著作  
 press is null：表示图书以存入数据库，但是没有出版社  
 time is null：表示图书以存入数据库，但是没有出版时间  
-对于数据不全的图书，如果是个别的话建议手改，没办法，图书信息录入太乱额。。。
 
 ####后期处理
 
-对于timeout_no表数据，运行timeout.php处理  
-对于top、title、auther、press、time数据，尽可能排查并修改正则以兼容此类问题  
-对于under数据，认定为图书信息有误或不存在，直接略过。
+对于redeal_no表中timeout数据，运行redeal.php处理  
+对于top、under、title、auther、press、time数据，尽可能排查并修改正则以兼容此类问题  
+对于订购、验收数据，认定暂时图书信息有误或不存在，可以先略过。  
 
 ###文件
 
-timeout.php
+redeal.php
 
 ####运行方式
 
-$php -f timeout.php
+$php -f redeal.php
 
 ####运行输出
 
@@ -41,7 +42,7 @@ $php -f timeout.php
 
 ####运行结果
 
-对数据库timeout_no表中timeout数据，再进行爬取处理，如果成功，就删除该条记录。并将图书信息存入数据库library_books表，反之存入timeout_no表，并且备注原因（timeout，top，under）。
+对数据库redeal_no表中timeout数据，再进行爬取处理，如果成功，就删除该条记录。并将图书信息存入数据库library_books表，反之存入redeal_no表，并且备注原因（timeout，top，under，订阅，验收等）。
 
 ####后期处理
 
