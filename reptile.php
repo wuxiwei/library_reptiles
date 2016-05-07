@@ -12,19 +12,29 @@ function main_action($minno, $maxno){
         $noStr = str_pad($no, 10, "0", STR_PAD_LEFT);
         $bookmes = check_books($noStr);    //固定10字节长度，用0填充
         if($bookmes['res'] == 201 || $bookmes['res'] == 501){
-            /* save_no($no, $bookmes['mes']); */            //存储到错误表
+            save_no($no,$bookmes['mes']);
             $mes = "no=> $no ,no book for $bookmes[mes]\n";
             file_out($mes);
             print $mes;
-        }else{ 
-            $insert = save_book($bookmes);
+        } else{ 
+            $insert = save_book($no, $bookmes);
             if($insert['result'] === FALSE || $insert['result'] == 0){    //如果存储失败。存储到错误表
                 save_no($no, 'error');            
                 $mes = "no=> $no ,no book for mysql error\n";
                 file_out($mes);
                 print $mes;
             }else{
-                $mes = "no=> $no ,line $insert[lineId]\n";
+                if($bookmes['title'] == ''){
+                    $mes = "no=> $no ,line $insert[lineId] but title is null\n";
+                }else if($bookmes['auther'] == ''){
+                    $mes = "no=> $no ,line $insert[lineId] but auther is null\n";
+                }else if($bookmes['press'] == ''){
+                    $mes = "no=> $no ,line $insert[lineId] but press is null\n";
+                }else if($bookmes['time'] == ''){
+                    $mes = "no=> $no ,line $insert[lineId] but time is null\n";
+                }else{
+                    $mes = "no=> $no ,line $insert[lineId]\n";
+                }
                 file_out($mes);
                 print $mes;
             }
@@ -45,10 +55,10 @@ function main_test(){
 /*
  * 将图书信息保存到数据库library_books表
  */
-function save_book($bookmes){
+function save_book($no, $bookmes){
     $pdo=new PDO('mysql:host=localhost;dbname=cityuit','root','q123456');
     $pdo->query('set names utf8');//设置字符集
-    $strSql = "INSERT INTO `library_books`(`title`, `auther`, `press`, `time`, `search`, `place`, `state`) VALUES ('$bookmes[title]','$bookmes[auther]','$bookmes[press]','$bookmes[time]','$bookmes[search]','$bookmes[place]','$bookmes[state]')";
+    $strSql = "INSERT INTO `library_books`(`no`, `title`, `auther`, `press`, `time`, `search`, `place`, `state`) VALUES ('$no', '$bookmes[title]','$bookmes[auther]','$bookmes[press]','$bookmes[time]','$bookmes[search]','$bookmes[place]','$bookmes[state]')";
     $result = $pdo->exec($strSql);//返回影响了多少行数据
     $lineId = $pdo->lastInsertId();//返回刚插入的id(的自增id)
     return array("result"=>$result, "lineId"=>$lineId);
@@ -60,7 +70,7 @@ function save_book($bookmes){
 function save_no($no, $mes){
     $pdo=new PDO('mysql:host=localhost;dbname=cityuit','root','q123456');
     $pdo->query('set names utf8');//设置字符集
-    $strSql = "INSERT INTO `timeout_no`(`no`, `remark`) VALUES ('$no','$mes')";
+    $strSql = "INSERT INTO `redeal_no`(`no`, `remark`) VALUES ('$no','$mes')";
     $pdo->exec($strSql);//返回影响了多少行数据
 }
 
@@ -84,16 +94,16 @@ function check_books($no){
     $contents = preg_replace("/([\r\n|\n|\t| ]+)/",'',$content);  //为更好地避开换行符和空格等不定因素的阻碍，有必要先清除采集到的源码中的换行符、空格符和制表符
     $contents = html_entity_decode($contents);     //将&#x0020;字符转中文
     $contents = preg_replace('/<\/a>/','',$contents);   //先提前将</a>给删了，免去判断
-        /* echo $contents; */
+    /* echo $contents; */
 
     //先确定有没有这本书，然后去解析书的信息
 
     $preg1 = '/此书刊可能正在订购中或者处理中/';
     $preg1_1 = '/正常验收/';
     if(preg_match($preg1, $contents)){
-        return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
+        return array("res"=>201,"mes"=>"订购");   //表示没有这本，并且是因为订购，返回就直接终止
     }else if(preg_match($preg1_1, $contents)){
-        return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
+        return array("res"=>201,"mes"=>"验收");   //表示没有这本，并且是因为验收，返回就直接终止
     }
 
     $bookarr = array();        
@@ -125,32 +135,73 @@ function check_books($no){
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
     }
 
-    $preg7 = '/题名\/责任者:<\/dt><dd><a.*>(.*)<\/dd>.*出版发行项:<\/dt><dd>.*:(.*)<\/dd>/U';
+    $preg7 = '/题名\/责任者:<\/dt><dd><a.*>(.*)<\/dd>.*出版发行项:<\/dt><dd>(.*)<\/dd>/U';
+    $preg7_1 = '/题名\/责任者:<\/dt><dd><a.*>(.*)<\/dd>/U';      //存在没有出版社和出版时间的图书
+
     if(preg_match($preg7, $contents, $out7)){
-        if(preg_match('/\//',$out7[1])){             //某些存在多个/字符的问题解决
-            $title = substr($out7[1],0,strrpos($out7[1],'/'));     //截取字符串开头到最后一个/字符的字符串，一般为书名信息
-            $auther = substr($out7[1],strrpos($out7[1],'/')+1, strlen($out7[1]));    //截取最后一个/字符到结尾的字符串，一般为著者信息
-        }else{//表示第一行没有著者的情况
-            $title = $out7[1];
-            $preg8 = '/个人责任者.*<a.*>(.*)<\/dd>/U';    //特殊处理，将主编取出
-            $preg9 = '/团体责任者.*<a.*>(.*)<\/dd>/U';
-            if(preg_match($preg8, $contents, $auth)){
-                $auther = $auth[1];
-            }else if(preg_match($preg9, $contents, $auth)){
-                $auther = $auth[1];
-            }
-        }
-        if(preg_match('/,/',$out7[2])){             //某些存在没有,字符的问题解决
-            $press = substr($out7[2],0,strrpos($out7[2],','));        //截取字符串开头到最后一个,字符的字符串，一般为出版社信息
-            $time = substr($out7[2],strrpos($out7[2],',')+1, strlen($out7[2]));    //截取最后一个,字符到结尾的字符串，一般为出版时间信息
-        }else{//表示没有出版时间信息
-            $press = $out7[2];
-        }
-        return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
+        $bookarr = bookmes_top($out7, $contents);
+        $bookarr['search'] = $search;
+        $bookarr['place'] = $place;
+        $bookarr['state'] = $state;
+        return $bookarr;
+    }else if(preg_match($preg7_1, $contents, $out7)){
+        $bookarr = bookmes_top($out7, $contents);
+        $bookarr['search'] = $search;
+        $bookarr['place'] = $place;
+        $bookarr['state'] = $state;
+        return $bookarr;
     }else{
         return array("res"=>201,"mes"=>"top");   //表示没有这本，并且是因为上面匹配为空导致，返回就直接终止
     }
 }
+
+/*
+ * 对图书信息的解析
+ */
+function bookmes_top($out, $contents){
+    if(preg_match('/\//',$out[1])){             //某些存在多个/字符的问题解决
+        $title = substr($out[1],0,strrpos($out[1],'/'));     //截取字符串开头到最后一个/字符的字符串，一般为书名信息
+        $auther = substr($out[1],strrpos($out[1],'/')+1, strlen($out[1]));    //截取最后一个/字符到结尾的字符串，一般为著者信息
+    }else{//表示第一行没有著者的情况
+        $title = $out[1];
+        $preg8_1 = '/个人责任者.*<a.*>(.*)<\/dd>/U';    //特殊处理，将主编取出
+        $preg8_2 = '/团体责任者.*<a.*>(.*)<\/dd>/U';
+        if(preg_match($preg8_1, $contents, $auth)){
+            $auther = $auth[1];
+        }else if(preg_match($preg8_2, $contents, $auth)){
+            $auther = $auth[1];
+        }
+    }
+
+    if($out[2] == NULL){      //如果是匹配的7_1，$out[2]就是空的了,但是不想对这些书的出版社和出版时间全部放弃
+        $preg8_3 = '/载体形态项.*<dd>(.*)<\/dd>/U';   //只能对个别问题特殊处理
+        if(preg_match($preg8_3, $contents, $auth)){
+            $real = $auth[1];
+            if(preg_match('/:/',$real)){   //有没有：字符，如果有应该是地点名词，舍去
+                $real = substr($auth[1],strpos($auth[1],':')+1, strlen($auth[1]));    //截取最后一个,字符到结尾的字符串，一般为出版时间信息
+            }
+            if(preg_match('/;/',$real)){             //某些存在没有,字符的问题解决
+                $press = substr($real,0,strrpos($real,';'));        //截取字符串开头到最后一个,字符的字符串，一般为出版社信息
+                $time = substr($real,strrpos($real,';')+1, strlen($real));    //截取最后一个,字符到结尾的字符串，一般为出版时间信息
+            }else{//表示没有出版时间信息
+                $press = $real;
+            }
+        }
+    }else if(preg_match('/:/',$out[2])){   //有没有：字符，如果有应该是地点名词，舍去
+        $real = substr($out[2],strpos($out[2],':')+1, strlen($out[2]));    //截取最后一个,字符到结尾的字符串，一般为出版时间信息
+        if(preg_match('/,/',$real)){             //某些存在没有,字符的问题解决
+            $press = substr($real,0,strrpos($real,','));        //截取字符串开头到最后一个,字符的字符串，一般为出版社信息
+            $time = substr($real,strrpos($real,',')+1, strlen($real));    //截取最后一个,字符到结尾的字符串，一般为出版时间信息
+        }else{//表示没有出版时间信息
+            $press = $real;
+        }
+    }else{
+        $press = $out[2];
+    }
+
+    return array("res"=>200, "title"=>$title, "auther"=>$auther, "press"=>$press, "time"=>$time, "search"=>$search, "place"=>$place, "state"=>$state);
+}
+
 
 /**
  * GET 请求
