@@ -120,6 +120,7 @@ function check_books($no){
         }
     }
     if(!empty($bookarr)){
+        $state = '已借出';
         for($i=0;$i<count($bookarr);$i++){
             $search = $bookarr[$i][0];                     //变量表示索书号
 
@@ -129,7 +130,10 @@ function check_books($no){
 
             $preg6 = '/>(.*)</U';
             preg_match($preg6, $bookarr[$i][4], $out6);
-            $state = $out6[1] == '可借' ? '可借' : '已借出';           //变量表示是否可借
+            if($out6[1] == '可借'){
+                $state = '可借';
+            }
+            /* $state = $out6[1] == '可借' ? '可借' : '已借出';           //变量表示是否可借 */
         }
     }else{
         return array("res"=>201,"mes"=>"under");   //表示没有这本，并且是因为下面匹配为空导致，返回就直接终止
